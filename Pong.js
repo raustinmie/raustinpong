@@ -71,13 +71,13 @@ function onLoad(event) {
 
 		// end match
 		if (ball.x <= 5) {
-			alert("P2 Wins!");
+			// alert("P2 Wins!");
 			ball.reset();
 			p1.reset();
 			p2.reset();
 			ball.startMoving();
 		} else if (ball.x >= 395) {
-			alert("P1 Wins!");
+			// alert("P1 Wins!");
 			ball.reset();
 			p1.reset();
 			p2.reset();
