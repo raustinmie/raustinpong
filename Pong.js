@@ -26,6 +26,7 @@ function contact(ball, paddle) {
 }
 
 function onLoad(event) {
+	let playerNum = -1;
 	const boardCanvas = document.getElementById("table");
 	const ctx = boardCanvas.getContext("2d");
 	console.log("Document finished loading");
@@ -33,17 +34,57 @@ function onLoad(event) {
 	let p1 = new Paddle(20, 180);
 	let p2 = new Paddle(370, 180);
 	let ball = new Missile(200, 200);
+	const socket = new WebSocket("ws://localhost:8080/ws");
 
 	document.addEventListener("keydown", event => {
-		if (event.keyCode === 40) {
-			p2.moveUp();
-		} else if (event.keyCode === 38) {
-			p2.moveDown();
+		let p = null;
+		if (playerNum === 1) {
+			p = p1;
+		} else if (playerNum === 2) {
+			p = p2;
 		}
-		if (event.keyCode === 83) {
-			p1.moveUp();
-		} else if (event.keyCode === 87) {
-			p1.moveDown();
+
+		if (event.keyCode === 40 || event.keyCode === 83) {
+			p.moveUp();
+			socket.send(JSON.stringify({ move: -1 }));
+		} else if (event.keyCode === 38 || event.keyCode === 87) {
+			p.moveDown();
+			socket.send(JSON.stringify({ move: 1 }));
+		}
+	});
+
+	socket.addEventListener("open", function(event) {
+		console.log("socket opened");
+	});
+
+	// Listen for messages
+	socket.addEventListener("message", function(event) {
+		const message = JSON.parse(event.data);
+
+		if (message.player) {
+			playerNum = message.player;
+		} else if (message.gameStart) {
+			ball.reset(message.gameStart[0], message.gameStart[1]);
+		} else if (message.move) {
+			let p = null;
+
+			console.log(`player move: ${message.move}`);
+			console.log(`current player: ${playerNum}`);
+
+			if (playerNum === 1) {
+				p = p2;
+			} else {
+				p = p1;
+			}
+
+			console.log(`p ${p}`);
+			if (message.move === 1) {
+				console.log("moving down");
+				p.moveDown();
+			} else if (message.move === -1) {
+				console.log("moving up");
+				p.moveUp();
+			}
 		}
 	});
 
@@ -70,18 +111,19 @@ function onLoad(event) {
 		// handle hitting paddles
 
 		// end match
-		if (ball.x <= 5) {
+		if (ball.x <= 5 || ball.x >= 395) {
 			// alert("P2 Wins!");
-			ball.reset();
+			// ball.reset();
 			p1.reset();
 			p2.reset();
-			ball.startMoving();
-		} else if (ball.x >= 395) {
-			// alert("P1 Wins!");
-			ball.reset();
-			p1.reset();
-			p2.reset();
-			ball.startMoving();
+			socket.send(JSON.stringify({ gameOver: true }));
+			// ball.startMoving();
+			// } else if (ball.x >= 395) {
+			// 	// alert("P1 Wins!");
+			// 	ball.reset();
+			// 	p1.reset();
+			// 	p2.reset();
+			// 	ball.startMoving();
 		}
 
 		// draw
@@ -133,8 +175,13 @@ class Paddle {
 	}
 
 	move(deltaTime) {
-		this._y += (this._moveY * deltaTime) / 100;
-		this._moveY = 0;
+		if (
+			(this.bottom <= 400 && this._moveY > 0) ||
+			(this.top >= 0 && this._moveY < 0)
+		) {
+			this._y += (this._moveY * deltaTime) / 100;
+			this._moveY = 0;
+		}
 	}
 
 	draw(ctx) {
@@ -157,12 +204,14 @@ class Missile {
 		this._initialY = this._y = y;
 		this._radius = 5;
 		this._speed = 13;
-		this.startMoving();
 	}
 
-	reset() {
+	reset(moveX, moveY) {
 		this._x = this._initialX;
 		this._y = this._initialY;
+
+		this._moveX = moveX;
+		this._moveY = moveY;
 	}
 
 	get radius() {
@@ -189,24 +238,24 @@ class Missile {
 		this._moveX *= -1;
 	}
 
-	startMoving() {
-		this._moveX = roll();
-		if (between(-0.45, 0.45, this._moveX)) {
-			this.startMoving();
-		}
+	// startMoving() {
+	// 	this._moveX = roll();
+	// 	if (between(-0.45, 0.45, this._moveX)) {
+	// 		this.startMoving();
+	// 	}
 
-		this._moveY = roll();
+	// 	this._moveY = roll();
 
-		const length = Math.sqrt(
-			this._moveX * this._moveX + this._moveY * this._moveY
-		);
+	// 	const length = Math.sqrt(
+	// 		this._moveX * this._moveX + this._moveY * this._moveY
+	// 	);
 
-		this._moveX /= length;
-		this._moveY /= length;
+	// 	this._moveX /= length;
+	// 	this._moveY /= length;
 
-		this._moveX *= this._speed;
-		this._moveY *= this._speed;
-	}
+	// 	this._moveX *= this._speed;
+	// 	this._moveY *= this._speed;
+	// }
 
 	move(deltaTime) {
 		this._x += (this._moveX * deltaTime) / 100;
