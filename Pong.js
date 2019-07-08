@@ -34,7 +34,7 @@ function onLoad(event) {
 	let p1 = new Paddle(20, 180);
 	let p2 = new Paddle(370, 180);
 	let ball = new Missile(200, 200);
-	const socket = new WebSocket("ws://localhost:8080/ws");
+	let socket = new WebSocket("ws://localhost:8080/ws");
 
 	document.addEventListener("keydown", event => {
 		let p = null;
@@ -44,10 +44,10 @@ function onLoad(event) {
 			p = p2;
 		}
 
-		if (event.keyCode === 40 || event.keyCode === 83) {
+		if (event.keyCode === 38 || event.keyCode === 87) {
 			p.moveUp();
 			socket.send(JSON.stringify({ move: -1 }));
-		} else if (event.keyCode === 38 || event.keyCode === 87) {
+		} else if (event.keyCode === 40 || event.keyCode === 83) {
 			p.moveDown();
 			socket.send(JSON.stringify({ move: 1 }));
 		}
@@ -62,8 +62,10 @@ function onLoad(event) {
 		const message = JSON.parse(event.data);
 
 		if (message.player) {
+			console.log(`We are now player ${message.player}`);
 			playerNum = message.player;
 		} else if (message.gameStart) {
+			console.log("starting game");
 			ball.reset(message.gameStart[0], message.gameStart[1]);
 		} else if (message.move) {
 			let p = null;
@@ -86,6 +88,11 @@ function onLoad(event) {
 				p.moveUp();
 			}
 		}
+	});
+
+	socket.addEventListener("close", function(event) {
+		console.log("Got disconnected");
+		socket = new WebSocket("ws://localhost:8080/ws");
 	});
 
 	let lastTime = performance.now();
@@ -143,7 +150,7 @@ class Paddle {
 		this._x = x;
 		this._y = y;
 		this._initialY = y;
-		this._speed = 15;
+		this._speed = 25;
 		this._moveY = 0;
 	}
 
@@ -168,10 +175,10 @@ class Paddle {
 	}
 
 	moveUp() {
-		this._moveY += this._speed;
+		this._moveY -= this._speed;
 	}
 	moveDown() {
-		this._moveY -= this._speed;
+		this._moveY += this._speed;
 	}
 
 	move(deltaTime) {
@@ -187,7 +194,7 @@ class Paddle {
 	draw(ctx) {
 		ctx.fillStyle = "Black";
 		ctx.fillRect(this._x, this._y, 10, 40);
-
+		ctx.strokeRect(0, 0, 400, 400);
 		ctx.strokeStyle = "Black";
 		ctx.strokeRect(
 			this.left,
@@ -203,7 +210,7 @@ class Missile {
 		this._initialX = this._x = x;
 		this._initialY = this._y = y;
 		this._radius = 5;
-		this._speed = 13;
+		this._speed = 5;
 	}
 
 	reset(moveX, moveY) {
