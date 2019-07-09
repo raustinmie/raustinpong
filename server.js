@@ -132,7 +132,7 @@ function setupDisconnectHandler(client) {
 	});
 }
 
-app.ws("/ws", function(ws, req) {
+app.ws("/", function(ws, req) {
 	console.log("Client connected");
 	setupDisconnectHandler(ws);
 	addToLobby(ws);

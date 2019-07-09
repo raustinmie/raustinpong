@@ -34,7 +34,12 @@ function onLoad(event) {
 	let p1 = new Paddle(20, 180);
 	let p2 = new Paddle(370, 180);
 	let ball = new Missile(200, 200);
-	let socket = new WebSocket("ws://localhost:8080/ws");
+
+	const baseUri = document.baseURI;
+	const wsUri = baseUri.replace(/http/, "ws");
+
+	console.log(`Websocket URI: ${wsUri}`);
+	let socket = new WebSocket(wsUri);
 
 	document.addEventListener("keydown", event => {
 		let p = null;
@@ -92,6 +97,7 @@ function onLoad(event) {
 
 	socket.addEventListener("close", function(event) {
 		console.log("Got disconnected");
+		// somehow stop the game
 		socket = new WebSocket("ws://localhost:8080/ws");
 	});
 
