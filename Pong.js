@@ -21,7 +21,7 @@ function contact(ball, paddle) {
 	// If the distance is less than the ball's radius, an intersection occurs
 	const distanceSquared = distanceX * distanceX + distanceY * distanceY;
 	if (distanceSquared < ball.radius * ball.radius) {
-		ball.bounce();
+		ball.bounce(paddle);
 	}
 }
 
@@ -51,10 +51,10 @@ function onLoad(event) {
 
 		if (event.keyCode === 38 || event.keyCode === 87) {
 			p.moveUp();
-			socket.send(JSON.stringify({ move: -1 }));
+			socket.send(JSON.stringify({ move: p.y }));
 		} else if (event.keyCode === 40 || event.keyCode === 83) {
 			p.moveDown();
-			socket.send(JSON.stringify({ move: 1 }));
+			socket.send(JSON.stringify({ move: p.y }));
 		}
 	});
 
@@ -85,13 +85,15 @@ function onLoad(event) {
 			}
 
 			console.log(`p ${p}`);
-			if (message.move === 1) {
-				console.log("moving down");
-				p.moveDown();
-			} else if (message.move === -1) {
-				console.log("moving up");
-				p.moveUp();
-			}
+			// 	if (message.move === 1) {
+			// 		console.log("moving down");
+			// 		p.moveDown();
+			// 	} else if (message.move === -1) {
+			// 		console.log("moving up");
+			// 		p.moveUp();
+			// 	}
+			// }
+			p.y = message.move;
 		}
 	});
 
@@ -125,18 +127,9 @@ function onLoad(event) {
 
 		// end match
 		if (ball.x <= 5 || ball.x >= 395) {
-			// alert("P2 Wins!");
-			// ball.reset();
 			p1.reset();
 			p2.reset();
 			socket.send(JSON.stringify({ gameOver: true }));
-			// ball.startMoving();
-			// } else if (ball.x >= 395) {
-			// 	// alert("P1 Wins!");
-			// 	ball.reset();
-			// 	p1.reset();
-			// 	p2.reset();
-			// 	ball.startMoving();
 		}
 
 		// draw
@@ -158,6 +151,20 @@ class Paddle {
 		this._initialY = y;
 		this._speed = 25;
 		this._moveY = 0;
+		this._paddleHeight = 40;
+		this._paddleWidth = 10;
+	}
+
+	get y() {
+		return this._y;
+	}
+
+	set y(value) {
+		this._y = value;
+	}
+
+	get paddleHeight() {
+		return this._paddleHeight;
 	}
 
 	reset() {
@@ -165,7 +172,11 @@ class Paddle {
 	}
 
 	get bottom() {
-		return this._y + 40;
+		return this._y + this._paddleHeight;
+	}
+
+	get center() {
+		return this._y + this._paddleHeight / 2;
 	}
 
 	get right() {
@@ -199,7 +210,7 @@ class Paddle {
 
 	draw(ctx) {
 		ctx.fillStyle = "Black";
-		ctx.fillRect(this._x, this._y, 10, 40);
+		ctx.fillRect(this._x, this._y, this._paddleWidth, this._paddleHeight);
 		ctx.strokeRect(0, 0, 400, 400);
 		ctx.strokeStyle = "Black";
 		ctx.strokeRect(
@@ -247,8 +258,29 @@ class Missile {
 		}
 	}
 
-	bounce() {
+	bounce(paddle) {
 		this._moveX *= -1;
+
+		this._moveX;
+		this._moveY;
+
+		let angleChange = (this._y - paddle.center) / (paddle._paddleHeight / 2);
+
+		const speed = Math.sqrt(
+			Math.pow(this._moveX, 2) + Math.pow(this._moveY, 2)
+		);
+
+		//TODO: CHANGE ANGLE OF BOUNCE
+		this._moveY += angleChange;
+		// const length = Math.sqrt(
+		// 	this._moveX * this._moveX + this._moveY * this._moveY
+		// );
+
+		// this._moveX /= length;
+		// this._moveY /= length;
+
+		// this._moveX *= speed;
+		// this._moveY *= speed;
 	}
 
 	// startMoving() {
