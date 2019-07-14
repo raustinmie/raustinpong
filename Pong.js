@@ -25,21 +25,29 @@ function contact(ball, paddle) {
 	}
 }
 
-function onLoad(event) {
+let p1 = null;
+let p2 = null;
+let ball = null;
+
+function openWebsocket() {
+	const baseUri = document.baseURI;
+	const wsUri = baseUri.replace(/http/, "ws");
+
+	console.log(`Websocket URI: ${wsUri}`);
+	return new WebSocket(wsUri);
+}
+
+function onLoad() {
 	let playerNum = -1;
 	const boardCanvas = document.getElementById("table");
 	const ctx = boardCanvas.getContext("2d");
 	console.log("Document finished loading");
 
-	let p1 = new Paddle(20, 180);
-	let p2 = new Paddle(370, 180);
-	let ball = new Missile(200, 200);
+	p1 = new Paddle(20, 180);
+	p2 = new Paddle(370, 180);
+	ball = new Missile(200, 200);
 
-	const baseUri = document.baseURI;
-	const wsUri = baseUri.replace(/http/, "ws");
-
-	console.log(`Websocket URI: ${wsUri}`);
-	let socket = new WebSocket(wsUri);
+	let socket = openWebsocket();
 
 	document.addEventListener("keydown", event => {
 		let p = null;
@@ -50,11 +58,14 @@ function onLoad(event) {
 		}
 
 		if (event.keyCode === 38 || event.keyCode === 87) {
+			console.log("client sent move up");
 			p.moveUp();
-			socket.send(JSON.stringify({ move: p.y }));
-		} else if (event.keyCode === 40 || event.keyCode === 83) {
+			socket.send(JSON.stringify({ move: "up" }));
+		}
+		if (event.keyCode === 40 || event.keyCode === 83) {
+			console.log("client sent move down");
 			p.moveDown();
-			socket.send(JSON.stringify({ move: p.y }));
+			socket.send(JSON.stringify({ move: "down" }));
 		}
 	});
 
@@ -72,35 +83,20 @@ function onLoad(event) {
 		} else if (message.gameStart) {
 			console.log("starting game");
 			ball.reset(message.gameStart[0], message.gameStart[1]);
-		} else if (message.move) {
-			let p = null;
-
-			console.log(`player move: ${message.move}`);
-			console.log(`current player: ${playerNum}`);
-
-			if (playerNum === 1) {
-				p = p2;
-			} else {
-				p = p1;
-			}
-
-			console.log(`p ${p}`);
-			// 	if (message.move === 1) {
-			// 		console.log("moving down");
-			// 		p.moveDown();
-			// 	} else if (message.move === -1) {
-			// 		console.log("moving up");
-			// 		p.moveUp();
-			// 	}
-			// }
-			p.y = message.move;
+		} else {
+			console.log(`packet received ${event.data}`);
+			ball.y = message.ballPositionY;
+			ball.x = message.ballPositionX;
+			p1.y = message.client1Position;
+			p2.y = message.client2Position;
+			ball.moveY = message.ballVectorY;
 		}
 	});
 
 	socket.addEventListener("close", function(event) {
 		console.log("Got disconnected");
 		// somehow stop the game
-		socket = new WebSocket("ws://localhost:8080/ws");
+		socket = openWebsocket();
 	});
 
 	let lastTime = performance.now();
@@ -129,7 +125,6 @@ function onLoad(event) {
 		if (ball.x <= 5 || ball.x >= 395) {
 			p1.reset();
 			p2.reset();
-			socket.send(JSON.stringify({ gameOver: true }));
 		}
 
 		// draw
@@ -199,13 +194,18 @@ class Paddle {
 	}
 
 	move(deltaTime) {
+		//		console.log(`dt: ${deltaTime} y: ${this._moveY}`);
 		if (
 			(this.bottom <= 400 && this._moveY > 0) ||
 			(this.top >= 0 && this._moveY < 0)
 		) {
-			this._y += (this._moveY * deltaTime) / 100;
-			this._moveY = 0;
+			this._y = clamp(
+				this._y + (this._moveY * deltaTime) / 100,
+				0,
+				400 - this._paddleHeight
+			);
 		}
+		this._moveY = 0;
 	}
 
 	draw(ctx) {
@@ -264,7 +264,7 @@ class Missile {
 		this._moveX;
 		this._moveY;
 
-		let angleChange = (this._y - paddle.center) / (paddle._paddleHeight / 2);
+		let angleChange = (this._y - paddle.center) / (paddle._paddleHeight * 2);
 
 		const speed = Math.sqrt(
 			Math.pow(this._moveX, 2) + Math.pow(this._moveY, 2)
@@ -317,8 +317,19 @@ class Missile {
 		return this._x;
 	}
 
+	set x(value) {
+		this._x = value;
+	}
 	get y() {
 		return this._y;
+	}
+
+	set y(value) {
+		this._y = value;
+	}
+
+	set moveY(value) {
+		this._moveY = value;
 	}
 
 	draw(ctx) {
